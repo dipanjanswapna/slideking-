@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A4 Slide Compact Grid & Optimizer</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF-Lib CDN -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <!-- PDF.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .drag-over {
+      border-color: #3b82f6 !important;
+      background-color: #1e293b !important;
+    }
+    /* Custom scrollbar for gallery and file list */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased flex flex-col">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-3 sm:px-6 py-3 sm:py-4 flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-3">
+    <div class="flex items-center space-x-2.5 sm:space-x-3">
+      <div class="bg-blue-600 p-2 sm:p-2.5 rounded-xl shadow-lg shadow-blue-500/20 text-white shrink-0">
+        <i class="fa-solid fa-file-pdf text-lg sm:text-xl"></i>
+      </div>
+      <div class="min-w-0">
+        <h1 class="font-bold text-base sm:text-lg leading-tight text-white truncate">PDF Slide Re-Layout & Optimizer Pro</h1>
+        <p class="text-[11px] sm:text-xs text-slate-400 truncate">Multi-File Batch • Column/Row Order • Color & Photocopy B&W Modes</p>
+      </div>
+    </div>
+    <div id="downloadHeaderBtn" class="hidden shrink-0">
+      <button onclick="downloadOutputPDF()" class="w-full xs:w-auto bg-blue-600 hover:bg-blue-500 text-white font-medium px-3.5 sm:px-5 py-2 rounded-lg shadow-md transition flex items-center justify-center space-x-2 text-xs sm:text-sm active:scale-95">
+        <i class="fa-solid fa-download"></i>
+        <span>Download A4 PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+
+    <!-- Controls & File Drop Column -->
+    <div class="lg:col-span-5 xl:col-span-4 space-y-4 sm:space-y-6">
+
+      <!-- Multi-File Upload Box -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs sm:text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-folder-open text-blue-400"></i> Source Documents
+          </h2>
+          <span id="fileCountBadge" class="text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full hidden">0 files</span>
+        </div>
+
+        <div id="dropZone" class="border-2 border-dashed border-slate-600 rounded-xl p-4 sm:p-5 text-center cursor-pointer hover:border-blue-500 hover:bg-slate-800 transition duration-200 flex flex-col items-center justify-center space-y-2">
+          <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 bg-slate-700 rounded-full flex items-center justify-center text-slate-300 text-base sm:text-lg">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </div>
+          <div>
+            <p class="text-xs sm:text-sm font-medium text-slate-200">Upload PDF Files (Multi-Select)</p>
+            <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Drag & drop multiple slides PDFs here</p>
+          </div>
+        </div>
+
+        <!-- Queued Files List -->
+        <div id="fileListContainer" class="hidden mt-4 space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1 font-medium">
+            <span>Uploaded Files</span>
+            <button onclick="clearAllFiles()" class="text-red-400 hover:text-red-300 transition p-1">Clear All</button>
+          </div>
+          <div id="fileList" class="max-h-36 sm:max-h-40 overflow-y-auto space-y-2 pr-1">
+            <!-- File items dynamically injected here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Layout & Printing Customization Panel -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4 sm:space-y-5">
+        <h2 class="text-xs sm:text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-blue-400"></i> Print & Layout Settings
+        </h2>
+
+        <!-- Slide Flow Direction (Row vs Column / Soja Soja) -->
+        <div>
+          <label class="text-xs font-medium text-slate-400 block mb-2">Slide Ordering Direction (Serial Flow)</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button type="button" id="flowRowBtn" onclick="setFlowDirection('row')" class="p-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 transition bg-blue-600 border-blue-500 text-white shadow-md active:scale-95">
+              <i class="fa-solid fa-arrow-right-long"></i>
+              <span>Row-Wise (Left to Right)</span>
+            </button>
+            <button type="button" id="flowColBtn" onclick="setFlowDirection('col')" class="p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 text-xs font-medium flex items-center justify-center gap-2 transition active:scale-95">
+              <i class="fa-solid fa-arrow-down-long text-blue-400"></i>
+              <span>Col-Wise (Soja Soja)</span>
+            </button>
+          </div>
+          <p id="flowHintText" class="text-[11px] text-slate-400 mt-1.5 leading-tight">
+            Order: Row 1 (Slide 1, 2) → Row 2 (Slide 3, 4)...
+          </p>
+        </div>
+
+        <!-- Color Mode Selection -->
+        <div>
+          <label class="text-xs font-medium text-slate-400 block mb-2">Color Mode / Print Output</label>
+          <div class="grid grid-cols-3 gap-1.5 sm:gap-2">
+            <button type="button" id="colorModeOriginal" onclick="setColorMode('color')" class="p-2 rounded-xl border text-[11px] sm:text-xs font-medium flex flex-col items-center justify-center gap-1 transition bg-blue-600 border-blue-500 text-white shadow-md active:scale-95">
+              <i class="fa-solid fa-palette text-xs sm:text-sm"></i>
+              <span class="text-center leading-tight">Full Color</span>
+            </button>
+            <button type="button" id="colorModeGray" onclick="setColorMode('grayscale')" class="p-2 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 text-[11px] sm:text-xs font-medium flex flex-col items-center justify-center gap-1 transition active:scale-95">
+              <i class="fa-solid fa-print text-xs sm:text-sm text-slate-400"></i>
+              <span class="text-center leading-tight">B&W Photocopy</span>
+            </button>
+            <button type="button" id="colorModeToner" onclick="setColorMode('toner-saver')" class="p-2 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 text-[11px] sm:text-xs font-medium flex flex-col items-center justify-center gap-1 transition active:scale-95">
+              <i class="fa-solid fa-droplet-slash text-xs sm:text-sm text-amber-400"></i>
+              <span class="text-center leading-tight">Ink Saver</span>
+            </button>
+          </div>
+          <p id="colorHintText" class="text-[11px] text-slate-400 mt-1.5 leading-tight">
+            Preserves original slide colors and gradients.
+          </p>
+        </div>
+
+        <!-- Grid Layout Dimensions -->
+        <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
+          <div>
+            <label class="text-xs font-medium text-slate-400 block mb-1.5">Grid Columns</label>
+            <input type="number" id="colsInput" value="2" min="1" max="4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 sm:p-2.5 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-400 block mb-1.5">Grid Rows</label>
+            <input type="number" id="rowsInput" value="5" min="1" max="8" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 sm:p-2.5 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+
+        <!-- Margins / Zero Gap Rule -->
+        <div class="p-2.5 sm:p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-1">
+          <div class="flex items-center space-x-2 text-amber-400 text-xs font-semibold">
+            <i class="fa-solid fa-border-none"></i>
+            <span>Zero Margin / Zero Gap (Gaye Gaye)</span>
+          </div>
+          <p class="text-[11px] text-slate-300 leading-normal">
+            Slides are stretched edge-to-edge to completely fill each cell without white borders or margins.
+          </p>
+        </div>
+
+        <!-- Deduplication Toggle -->
+        <div class="flex items-center justify-between pt-2 border-t border-slate-700/60">
+          <div>
+            <p class="text-xs sm:text-sm font-medium text-slate-200">Auto Remove Duplicates</p>
+            <p class="text-[11px] sm:text-xs text-slate-400">Automatically filter out redundant slides</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+            <input type="checkbox" id="dedupToggle" checked class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
+        <button onclick="processPDFs()" id="processBtn" disabled class="w-full bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-500 text-white font-semibold py-2.5 sm:py-3 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs sm:text-sm active:scale-95">
+          <i class="fa-solid fa-gears"></i>
+          <span>Process & Generate A4 Document</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Processing Stats & Preview Column -->
+    <div class="lg:col-span-7 xl:col-span-8 space-y-4 sm:space-y-6">
+
+      <!-- Initial Empty State -->
+      <div id="emptyState" class="bg-slate-800/40 border border-slate-800 rounded-2xl p-6 sm:p-12 text-center h-full min-h-[300px] sm:min-h-[450px] flex flex-col items-center justify-center text-slate-500">
+        <i class="fa-solid fa-file-circle-plus text-4xl sm:text-5xl mb-3 sm:mb-4 text-slate-600"></i>
+        <h3 class="text-base sm:text-lg font-semibold text-slate-300">No PDF Files Loaded</h3>
+        <p class="text-xs sm:text-sm max-w-md mt-1 text-slate-400">Upload one or multiple lecture slide PDFs on the left to generate a compact A4 printable booklet.</p>
+      </div>
+
+      <!-- Processing Progress Overlay -->
+      <div id="loadingState" class="hidden bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 sm:p-12 text-center h-full min-h-[300px] sm:min-h-[450px] flex flex-col items-center justify-center space-y-4">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div class="space-y-1">
+          <p id="progressText" class="text-sm sm:text-base font-semibold text-slate-200">Analyzing PDF Pages...</p>
+          <p id="progressSubtext" class="text-xs text-slate-400">Deduplicating slides and computing layout grid</p>
+        </div>
+      </div>
+
+      <!-- Processing Summary Stats -->
+      <div id="summaryCards" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+        <div class="bg-slate-800/80 border border-slate-700/80 p-3 sm:p-4 rounded-xl">
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">Source Files</p>
+          <p id="statFiles" class="text-xl sm:text-2xl font-bold text-white mt-1">0</p>
+        </div>
+        <div class="bg-slate-800/80 border border-slate-700/80 p-3 sm:p-4 rounded-xl">
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">Original Slides</p>
+          <p id="statOriginal" class="text-xl sm:text-2xl font-bold text-slate-200 mt-1">0</p>
+        </div>
+        <div class="bg-slate-800/80 border border-slate-700/80 p-3 sm:p-4 rounded-xl">
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">Duplicates Removed</p>
+          <p id="statDuplicates" class="text-xl sm:text-2xl font-bold text-amber-400 mt-1">0</p>
+        </div>
+        <div class="bg-slate-800/80 border border-slate-700/80 p-3 sm:p-4 rounded-xl">
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">Output A4 Pages</p>
+          <p id="statOutputPages" class="text-xl sm:text-2xl font-bold text-green-400 mt-1">0</p>
+        </div>
+      </div>
+
+      <!-- Result PDF Action & Preview Container -->
+      <div id="resultContainer" class="hidden bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 sm:p-6 shadow-xl space-y-4 sm:space-y-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700/80 pb-4 gap-3 sm:gap-4">
+          <div>
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-circle-check text-green-400"></i> Optimized A4 Document Ready
+            </h3>
+            <p id="resultDetails" class="text-xs text-slate-400 mt-0.5">2 Cols × 5 Rows • Edge-to-Edge Grid</p>
+          </div>
+          <button onclick="downloadOutputPDF()" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-semibold px-4 sm:px-6 py-2.5 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs sm:text-sm active:scale-95">
+            <i class="fa-solid fa-file-arrow-down text-sm sm:text-base"></i>
+            <span>Download Formatted PDF</span>
+          </button>
+        </div>
+
+        <!-- Canvas / PDF Page Render Gallery -->
+        <div>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Page Previews</h4>
+          <div id="pageGallery" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 max-h-[450px] sm:max-h-[600px] xl:max-h-[700px] overflow-y-auto pr-1">
+            <!-- Dynamic Canvas previews injected here -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    // PDF.js Worker setup
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // State Variables
+    let loadedFiles = []; // Array of File objects
+    let selectedFlowDirection = 'row'; // 'row' or 'col'
+    let selectedColorMode = 'color'; // 'color', 'grayscale', 'toner-saver'
+    let generatedPdfBlobUrl = null;
+    let generatedPdfBytes = null;
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    // Drag & Drop handlers
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+      }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = Array.from(dt.files).filter(f => f.type === 'application/pdf');
+      if (files.length > 0) {
+        addFilesToList(files);
+      }
+    });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        addFilesToList(Array.from(e.target.files));
+      }
+    });
+
+    async function addFilesToList(files) {
+      for (const file of files) {
+        // Prevent exact file duplication in queue by name & size
+        if (!loadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+          loadedFiles.push(file);
+        }
+      }
+      updateFileListUI();
+    }
+
+    function removeFile(index) {
+      loadedFiles.splice(index, 1);
+      updateFileListUI();
+    }
+
+    function clearAllFiles() {
+      loadedFiles = [];
+      updateFileListUI();
+      document.getElementById('emptyState').classList.remove('hidden');
+      document.getElementById('resultContainer').classList.add('hidden');
+      document.getElementById('summaryCards').classList.add('hidden');
+      document.getElementById('downloadHeaderBtn').classList.add('hidden');
+    }
+
+    async function updateFileListUI() {
+      const container = document.getElementById('fileListContainer');
+      const list = document.getElementById('fileList');
+      const badge = document.getElementById('fileCountBadge');
+      const processBtn = document.getElementById('processBtn');
+
+      if (loadedFiles.length === 0) {
+        container.classList.add('hidden');
+        badge.classList.add('hidden');
+        processBtn.disabled = true;
+        return;
+      }
+
+      container.classList.remove('hidden');
+      badge.classList.remove('hidden');
+      badge.textContent = `${loadedFiles.length} file${loadedFiles.length > 1 ? 's' : ''}`;
+      processBtn.disabled = false;
+
+      list.innerHTML = '';
+      for (let i = 0; i < loadedFiles.length; i++) {
+        const file = loadedFiles[i];
+        
+        // Count pages
+        let pageCountText = '...';
+        try {
+          const buf = await file.arrayBuffer();
+          const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+          pageCountText = `${doc.numPages} slides`;
+        } catch (err) {
+          pageCountText = 'PDF error';
+        }
+
+        const div = document.createElement('div');
+        div.className = 'bg-slate-900/90 rounded-lg p-2 border border-slate-700/80 flex items-center justify-between text-xs';
+        div.innerHTML = `
+          <div class="flex items-center space-x-2 truncate">
+            <i class="fa-solid fa-file-pdf text-blue-400 text-sm"></i>
+            <span class="text-slate-200 font-medium truncate max-w-[180px]">${file.name}</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 text-[10px]">${pageCountText}</span>
+            <button onclick="removeFile(${i})" class="text-slate-400 hover:text-red-400 p-1"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        `;
+        list.appendChild(div);
+      }
+    }
+
+    // Controls Logic
+    function setFlowDirection(direction) {
+      selectedFlowDirection = direction;
+      const rowBtn = document.getElementById('flowRowBtn');
+      const colBtn = document.getElementById('flowColBtn');
+      const hint = document.getElementById('flowHintText');
+
+      if (direction === 'row') {
+        rowBtn.className = 'p-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 transition bg-blue-600 border-blue-500 text-white shadow-md active:scale-95';
+        colBtn.className = 'p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 text-xs font-medium flex items-center justify-center gap-2 transition active:scale-95';
+        hint.textContent = 'Order: Row 1 (Slide 1, 2) → Row 2 (Slide 3, 4)...';
+      } else {
+        colBtn.className = 'p-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 transition bg-blue-600 border-blue-500 text-white shadow-md active:scale-95';
+        rowBtn.className = 'p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 text-xs font-medium flex items-center justify-center gap-2 transition active:scale-95';
+        hint.textContent = 'Order (Soja Soja): Col 1 top-to-bottom (1..5) → Col 2 top-to-bottom (6..10)';
+      }
+    }
+
+    function setColorMode(mode) {
+      selectedColorMode = mode;
+      const origBtn = document.getElementById('colorModeOriginal');
+      const grayBtn = document.getElementById('colorModeGray');
+      const tonerBtn = document.getElementById('colorModeToner');
+      const hint = document.getElementById('colorHintText');
+
+      [origBtn, grayBtn, tonerBtn].forEach(b => {
+        b.className = 'p-2 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 text-[11px] sm:text-xs font-medium flex flex-col items-center justify-center gap-1 transition active:scale-95';
+      });
+
+      if (mode === 'color') {
+        origBtn.className = 'p-2 rounded-xl border text-[11px] sm:text-xs font-medium flex flex-col items-center justify-center gap-1 transition bg-blue-600 border-blue-500 text-white shadow-md active:scale-95';
+        hint.textContent = 'Preserves original full-color slides.';
+      } else if (mode === 'grayscale') {
+        grayBtn.className = 'p-2 rounded-xl border text-[11px] sm:text-xs font-medium flex flex-col items-center justify-center gap-1 transition bg-blue-600 border-blue-500 text-white shadow-md active:scale-95';
+        hint.textContent = 'Photocopy mode: standard 8-bit black & white grayscale.';
+      } else if (mode === 'toner-saver') {
+        tonerBtn.className = 'p-2 rounded-xl border text-[11px] sm:text-xs font-medium flex flex-col items-center justify-center gap-1 transition bg-blue-600 border-blue-500 text-white shadow-md active:scale-95';
+        hint.textContent = 'Ink Saver mode: automatically inverts dark slides to crisp white background.';
+      }
+    }
+
+    // Helper: Compute page Hash for deduplication
+    async function computePageHash(canvas) {
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      
+      let hashStr = '';
+      const step = Math.max(1, Math.floor(imgData.length / 4000));
+      for (let i = 0; i < imgData.length; i += step) {
+        hashStr += imgData[i].toString(16);
+      }
+      
+      const encoder = new TextEncoder();
+      const data = encoder.encode(hashStr);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function processPDFs() {
+      if (loadedFiles.length === 0) return;
+
+      // Reset UI
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('resultContainer').classList.add('hidden');
+      document.getElementById('summaryCards').classList.add('hidden');
+      document.getElementById('loadingState').classList.remove('hidden');
+
+      const cols = parseInt(document.getElementById('colsInput').value) || 2;
+      const rows = parseInt(document.getElementById('rowsInput').value) || 5;
+      const slidesPerPage = cols * rows;
+      const shouldDedup = document.getElementById('dedupToggle').checked;
+
+      document.getElementById('progressText').textContent = 'Loading and deduplicating source slides...';
+
+      let totalOriginalSlides = 0;
+      const slidesToEmbed = []; // Array of { fileIndex, pageNum }
+      const seenHashes = new Set();
+
+      // Step 1: Scan all files
+      for (let fIdx = 0; fIdx < loadedFiles.length; fIdx++) {
+        const file = loadedFiles[fIdx];
+        document.getElementById('progressSubtext').textContent = `Reading ${file.name}...`;
+
+        const arrayBuf = await file.arrayBuffer();
+        const pdfJsDoc = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+        totalOriginalSlides += pdfJsDoc.numPages;
+
+        for (let pNum = 1; pNum <= pdfJsDoc.numPages; pNum++) {
+          const page = await pdfJsDoc.getPage(pNum);
+
+          if (shouldDedup) {
+            const viewport = page.getViewport({ scale: 0.15 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport }).promise;
+
+            const pageHash = await computePageHash(canvas);
+            if (!seenHashes.has(pageHash)) {
+              seenHashes.add(pageHash);
+              slidesToEmbed.push({ fileIndex: fIdx, pageNum: pNum });
+            }
+          } else {
+            slidesToEmbed.push({ fileIndex: fIdx, pageNum: pNum });
+          }
+        }
+      }
+
+      const duplicatesRemoved = totalOriginalSlides - slidesToEmbed.length;
+      const totalOutputPages = Math.ceil(slidesToEmbed.length / slidesPerPage);
+
+      // Update Stats UI
+      document.getElementById('statFiles').textContent = loadedFiles.length;
+      document.getElementById('statOriginal').textContent = totalOriginalSlides;
+      document.getElementById('statDuplicates').textContent = duplicatesRemoved;
+      document.getElementById('statOutputPages').textContent = totalOutputPages;
+
+      document.getElementById('progressText').textContent = 'Rendering layout and applying color modes...';
+
+      // Load PDF-Lib instances for source files
+      const srcPdfLibDocs = [];
+      for (const file of loadedFiles) {
+        const buf = await file.arrayBuffer();
+        const pdfDoc = await PDFLib.PDFDocument.load(buf);
+        srcPdfLibDocs.push(pdfDoc);
+      }
+
+      const newDoc = await PDFLib.PDFDocument.create();
+
+      // Standard A4 Dimensions (72 DPI)
+      const A4_WIDTH = 595.28;
+      const A4_HEIGHT = 841.89;
+
+      const cellWidth = A4_WIDTH / cols;
+      const cellHeight = A4_HEIGHT / rows;
+
+      // Step 2: Build Output Pages
+      for (let pageIdx = 0; pageIdx < totalOutputPages; pageIdx++) {
+        document.getElementById('progressSubtext').textContent = `Building A4 Page ${pageIdx + 1} of ${totalOutputPages}...`;
+        const a4Page = newDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+
+        for (let slot = 0; slot < slidesPerPage; slot++) {
+          const slideRefIdx = pageIdx * slidesPerPage + slot;
+          if (slideRefIdx >= slidesToEmbed.length) break;
+
+          const slideItem = slidesToEmbed[slideRefIdx];
+
+          // Compute col & row according to selected flow direction
+          let col = 0;
+          let row = 0;
+
+          if (selectedFlowDirection === 'row') {
+            // Row-wise flow: Col changes first, then Row
+            col = slot % cols;
+            row = Math.floor(slot / cols);
+          } else {
+            // Col-wise flow ("Soja Soja"): Row changes top-to-bottom first, then Col
+            col = Math.floor(slot / rows);
+            row = slot % rows;
+          }
+
+          // Zero-margin edge-to-edge coordinates
+          const x = col * cellWidth;
+          const y = A4_HEIGHT - (row + 1) * cellHeight;
+
+          // Color Mode Processing
+          if (selectedColorMode === 'color') {
+            // Direct native vector embedding for optimal quality
+            const srcDoc = srcPdfLibDocs[slideItem.fileIndex];
+            const sourcePage = srcDoc.getPages()[slideItem.pageNum - 1];
+            const [embeddedPage] = await newDoc.embedPages([sourcePage]);
+
+            a4Page.drawPage(embeddedPage, {
+              x: x,
+              y: y,
+              width: cellWidth,
+              height: cellHeight
+            });
+          } else {
+            // High-resolution canvas render + Grayscale / Ink-Saver pixel processing
+            const buf = await loadedFiles[slideItem.fileIndex].arrayBuffer();
+            const pdfJsDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+            const pdfJsPage = await pdfJsDoc.getPage(slideItem.pageNum);
+
+            const viewport = pdfJsPage.getViewport({ scale: 2.0 }); // High DPI
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+
+            await pdfJsPage.render({ canvasContext: ctx, viewport }).promise;
+
+            // Apply Color Filters
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const d = imgData.data;
+
+            if (selectedColorMode === 'grayscale') {
+              for (let i = 0; i < d.length; i += 4) {
+                const gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+                d[i] = gray;
+                d[i+1] = gray;
+                d[i+2] = gray;
+              }
+            } else if (selectedColorMode === 'toner-saver') {
+              // Calculate average slide brightness to detect dark slides
+              let totalBrightness = 0;
+              const sampleStep = 16;
+              let samples = 0;
+              for (let i = 0; i < d.length; i += 4 * sampleStep) {
+                totalBrightness += (0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]);
+                samples++;
+              }
+              const avgBrightness = totalBrightness / (samples || 1);
+
+              const isDarkSlide = avgBrightness < 128;
+
+              for (let i = 0; i < d.length; i += 4) {
+                let r = d[i], g = d[i+1], b = d[i+2];
+                if (isDarkSlide) {
+                  // Invert dark backgrounds to light
+                  r = 255 - r;
+                  g = 255 - g;
+                  b = 255 - b;
+                }
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                // Boost contrast for ultra-sharp text printing
+                const sharpGray = gray > 200 ? 255 : (gray < 80 ? 0 : gray);
+                d[i] = sharpGray;
+                d[i+1] = sharpGray;
+                d[i+2] = sharpGray;
+              }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+
+            // Embed as PNG into PDF
+            const pngUrl = canvas.toDataURL('image/png');
+            const pngImage = await newDoc.embedPng(pngUrl);
+
+            a4Page.drawImage(pngImage, {
+              x: x,
+              y: y,
+              width: cellWidth,
+              height: cellHeight
+            });
+          }
+        }
+      }
+
+      // Step 3: Save PDF
+      generatedPdfBytes = await newDoc.save();
+      const blob = new Blob([generatedPdfBytes], { type: 'application/pdf' });
+
+      if (generatedPdfBlobUrl) URL.revokeObjectURL(generatedPdfBlobUrl);
+      generatedPdfBlobUrl = URL.createObjectURL(blob);
+
+      // Render Previews
+      document.getElementById('progressText').textContent = 'Generating final page previews...';
+      await renderPagePreviews(generatedPdfBytes.slice().buffer);
+
+      // UI Update
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('summaryCards').classList.remove('hidden');
+      document.getElementById('resultContainer').classList.remove('hidden');
+      document.getElementById('downloadHeaderBtn').classList.remove('hidden');
+
+      const flowLabel = selectedFlowDirection === 'row' ? 'Row-Wise (Left to Right)' : 'Col-Wise (Soja Soja)';
+      const colorLabel = selectedColorMode === 'color' ? 'Full Color' : (selectedColorMode === 'grayscale' ? 'B&W Photocopy' : 'Ink Saver');
+      document.getElementById('resultDetails').textContent = `${cols}x${rows} Grid • ${flowLabel} • ${colorLabel} • Edge-to-Edge`;
+    }
+
+    async function renderPagePreviews(pdfBytes) {
+      const gallery = document.getElementById('pageGallery');
+      gallery.innerHTML = '';
+
+      const previewDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+
+      for (let i = 1; i <= previewDoc.numPages; i++) {
+        const page = await previewDoc.getPage(i);
+        const viewport = page.getViewport({ scale: 0.5 });
+
+        const card = document.createElement('div');
+        card.className = 'bg-slate-900 border border-slate-700/80 rounded-xl p-3 flex flex-col items-center space-y-2';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.className = 'w-full h-auto rounded border border-slate-800 shadow-sm';
+
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const label = document.createElement('span');
+        label.className = 'text-xs text-slate-400 font-medium';
+        label.textContent = `A4 Page ${i} of ${previewDoc.numPages}`;
+
+        card.appendChild(canvas);
+        card.appendChild(label);
+        gallery.appendChild(card);
+      }
+    }
+
+    function downloadOutputPDF() {
+      if (!generatedPdfBlobUrl) return;
+      const a = document.createElement('a');
+      a.href = generatedPdfBlobUrl;
+      const baseName = loadedFiles.length > 0 ? loadedFiles[0].name.replace(/\.[^/.]+$/, "") : "presentation";
+      a.download = `${baseName}_Compact_A4_${selectedFlowDirection.toUpperCase()}_${selectedColorMode.toUpperCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  </script>
+</body>
+</html>
